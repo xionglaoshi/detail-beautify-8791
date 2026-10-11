@@ -1,0 +1,79 @@
+{
+  "name": "详情美化",
+  "description": "让 Codex 桌面端直接渲染思考块正文（读模型原生 reasoning：content）＋ 思考中展开、回答完折叠；本文件每条都从「官方原版串」一步改到「最终串」，因此重新打补丁/退回后再打都能一把成功",
+  "revision": "v4.1 (2026-09-16)：修正清单结构——去掉会被后续补丁覆盖的中间步骤，12 条并为 9 条一步到位；另加「思考全过程」标记（诊断用）",
+  "authored_on": "2026-09-16",
+  "authored_for_version": "26.908.70816",
+  "targets": [
+    {
+      "id": "reasoning-render-from-content",
+      "why": "根因：思考块取数从摘要通道改成原生思考通道（summary→a.content，天然等长。用存储条目 a 而非实时条目 c，回看历史也能渲染）",
+      "find": "he(c.summary)",
+      "replace": "he(a.content)",
+      "expect": 1
+    },
+    {
+      "id": "reasoning-memo-key-read",
+      "why": "编译期 memo 缓存读键：summary 恒空时缓存永不失效 → 内容停在空。键改为 a.content",
+      "find": "t[0]===c.summary",
+      "replace": "t[0]===a.content",
+      "expect": 1
+    },
+    {
+      "id": "reasoning-memo-key-write",
+      "why": "同上：缓存写键同步改为 a.content（与读键成对）",
+      "find": "t[0]=c.summary",
+      "replace": "t[0]=a.content",
+      "expect": 1
+    },
+    {
+      "id": "reasoning-merge-always",
+      "why": "原条件要求实时条目 c 存在才走合并分支；回合结束/回看时 c 可能没了 → 退回未规范化条目（content 是数组）→ 空白。改为用 a 自校验，恒真",
+      "find": "a.type===`reasoning`&&c?.type===`reasoning`",
+      "replace": "a.type===`reasoning`&&a?.type===`reasoning`",
+      "expect": 1
+    },
+    {
+      "id": "reasoning-stream-visible",
+      "why": "思考中就把正文显示出来：把「仅当会话状态 null/resumed 才显示」改成恒真",
+      "find": "s==null||s===`resumed`",
+      "replace": "!!1&&s===s&&s===s&&!!1",
+      "expect": 1
+    },
+    {
+      "id": "reasoning-collapse-after-done",
+      "why": "回答结束后思考块自动折叠（点标题看全文）",
+      "find": "let p=f,[m,h]=(0,AH.useState)(!0),g=!c&&!!d,",
+      "replace": "let p=f,[m,h]=(0,AH.useState)(!1),g=!c&&!!d,",
+      "expect": 1
+    },
+    {
+      "id": "reasoning-height",
+      "why": "思考块显示区高度上限 8.75rem(140px) → 22.5rem(360px)",
+      "find": "maxHeightByState:{preview:`8.75rem`,expanded:`8.75rem`,collapsed:`0px`}",
+      "replace": "maxHeightByState:{preview:`22.5rem`,expanded:`22.5rem`,collapsed:`0px`}",
+      "expect": 1
+    },
+    {
+      "id": "reasoning-answer-header-marker",
+      "why": "诊断+体验：完成后的思考块标题由「已完成思考」改为「思考全过程」，用于确认该行是否真的渲染（纯文案，等长 15 字节）",
+      "find": "已完成思考",
+      "replace": "思考全过程",
+      "expect": 1
+    },
+    {
+      "id": "keep-reasoning-items",
+      "why": "★关键闸门（2026-09-16 定位）：回合视图把 reasoning 条目塞进「探索组」并只渲染成一行摘要（qe() 在回合结束后返回 {kind:'summary'}）→ 思考正文永远不出现。把该分支条件改成恒假（n→e，同为 20 字节），reasoning 就改走通用路径 r.push({kind:'item',item:n}) —— 作为独立可展开条目渲染",
+      "find": "if(n.type===`reasoning`){i&&i.push(n);continue}",
+      "replace": "if(e.type===`reasoning`){i&&i.push(n);continue}",
+      "expect": 1
+    },
+    {
+      "id": "keep-reasoning-items-legacy",
+      "why": "避免带工作活动项的消息把 reasoning 条目整条丢弃（O.length===0 → 恒真）",
+      "find": "s.filter(e=>O.length===0||e.item.type!==`reasoning`)",
+      "replace": "s.filter(e=>O.length>=+0||e.item.type!==`reasoning`)",
+      "expect": 1
+    }
+  ]
+}
